@@ -16,7 +16,16 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
+          script_stop: true
           script: |
-            cd /path/to/your/project
-            git pull
-            docker compose up --build -d
+            # Om mappen inte finns, ladda ner (clona) projektet från GitHub
+            [ -d EnergyTracker ] || git clone https://github.com/levieohlund/EnergyTracker.git
+
+            # Gå in i mappen
+            cd EnergyTracker
+
+            # Hämta den senaste koden
+            git pull origin main
+
+            # Starta appen med Docker
+            sudo docker compose up --build -d || sudo docker-compose up --build -d
