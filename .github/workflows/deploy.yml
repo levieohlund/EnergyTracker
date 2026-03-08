@@ -18,14 +18,20 @@ jobs:
           key: ${{ secrets.KEY }}
           script_stop: true
           script: |
-            # Om mappen inte finns, ladda ner (clona) projektet från GitHub
-            [ -d EnergyTracker ] || git clone https://github.com/levieohlund/EnergyTracker.git
+            REPO_DIR="$HOME/EnergyTracker"
+            REPO_URL="https://github.com/levieohlund/EnergyTracker.git"
 
-            # Gå in i mappen
-            cd EnergyTracker
+            # Säkerställ att mappen är en riktig git-repo
+            if [ ! -d "$REPO_DIR/.git" ]; then
+              rm -rf "$REPO_DIR"
+              git clone "$REPO_URL" "$REPO_DIR"
+            fi
 
-            # Hämta den senaste koden
-            git pull origin main
+            # Hämta senaste kod från main
+            git -C "$REPO_DIR" fetch origin main
+            git -C "$REPO_DIR" checkout main
+            git -C "$REPO_DIR" pull origin main
 
             # Starta appen med Docker
+            cd "$REPO_DIR"
             sudo docker compose up --build -d || sudo docker-compose up --build -d
