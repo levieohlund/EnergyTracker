@@ -1,198 +1,92 @@
 # Energy Tracker API
 
-Ett enkelt REST-API byggt med FastAPI för att lagra och läsa fiktiv energidata för byggprojekt.
+[![Build Status](https://github.com/levieohlund/EnergyTracker/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/levieohlund/EnergyTracker/actions/workflows/deploy.yml)
 
-## Innehåll
+Ett backendprojekt byggt i FastAPI för att hantera energimätningar i byggprojekt. Fokus ligger på modern drift: containerisering, automatiserad deploy och enkel lokal utveckling.
 
-- Python + FastAPI
-- SQLite-databas (`energy.db` lokalt, eller `/app/data/energy.db` i Docker via environment)
-- Endpoints för att:
-  - lägga till energimätningar
-  - hämta alla energimätningar
-  - verifiera hälsa (`/health`)
+## Projektöversikt
 
-## Projektstruktur
+- Bygger ett REST-API med endpoint för att skapa och läsa energimätningar
+- Lagrar data i SQLite
+- Körs lokalt med Docker Compose eller direkt via Python
+- Deployas automatiskt till AWS EC2 via GitHub Actions
 
-- `main.py` – API och databaslogik
-- `requirements.txt` – Python-beroenden
-- `Dockerfile` – containerisering av appen
-- `docker-compose.yml` – enkel lokal körning med Docker Compose
-- `.dockerignore` – filer/mappar som inte ska in i imagen
+## Teknik
 
-## Förkrav
+- Python, FastAPI, Uvicorn
+- SQLite
+- Docker och Docker Compose
+- GitHub Actions
+- AWS EC2
 
-- Python 3.10+ (rekommenderat: 3.13)
-- `pip`
-- (Valfritt) Docker Desktop om du vill köra i container
+## Arkitektur i korthet
 
-## 1) Lokal körning (utan Docker)
+- API: main.py
+- Databas: energy.db (persistent volume i Docker Compose)
+- Containerisering: Dockerfile
+- Deploy-workflow: .github/workflows/deploy.yml
 
-### Installera beroenden
+## API
+
+- GET /health
+- POST /measurements
+- GET /measurements
+
+Exempel för POST /measurements:
+
+```json
+{
+  "project_name": "Byggprojekt A",
+  "date": "2026-03-08",
+  "kwh_consumed": 123.4
+}
+```
+
+## Kör lokalt
 
 ```bash
 pip install -r requirements.txt
-```
-
-### Starta API:t
-
-```bash
 python -m uvicorn main:app --reload
 ```
 
-API:t körs då på:
+Dokumentation lokalt:
 
-- `http://127.0.0.1:8000`
-- Interaktiv dokumentation: `http://127.0.0.1:8000/docs`
+- http://127.0.0.1:8000/docs
 
-## 2) API-endpoints
-
-### GET `/health`
-Kontrollerar att API:t är igång.
-
-**Exempel-svar:**
-
-```json
-{
-  "status": "ok"
-}
-```
-
-### POST `/measurements`
-Lägger till en ny energimätning.
-
-**Request body (JSON):**
-
-```json
-{
-  "project_name": "Byggprojekt A",
-  "date": "2026-03-08",
-  "kwh_consumed": 123.4
-}
-```
-
-**Exempel-svar:**
-
-```json
-{
-  "id": 1,
-  "project_name": "Byggprojekt A",
-  "date": "2026-03-08",
-  "kwh_consumed": 123.4
-}
-```
-
-### GET `/measurements`
-Hämtar alla sparade mätningar.
-
-**Exempel-svar:**
-
-```json
-[
-  {
-    "id": 1,
-    "project_name": "Byggprojekt A",
-    "date": "2026-03-08",
-    "kwh_consumed": 123.4
-  }
-]
-```
-
-## 3) Snabba testanrop
-
-### Med `curl`
+## Kör med Docker Compose
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/measurements" \
-  -H "Content-Type: application/json" \
-  -d "{\"project_name\":\"Byggprojekt A\",\"date\":\"2026-03-08\",\"kwh_consumed\":123.4}"
-
-curl "http://127.0.0.1:8000/measurements"
-curl "http://127.0.0.1:8000/health"
-```
-
-### Med PowerShell
-
-```powershell
-Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/measurements" -ContentType "application/json" -Body '{"project_name":"Byggprojekt A","date":"2026-03-08","kwh_consumed":123.4}'
-
-Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:8000/measurements"
-Invoke-RestMethod -Method Get -Uri "http://127.0.0.1:8000/health"
-```
-
-## 4) Körning med Docker
-
-### Bygg image manuellt
-
-```bash
-docker build -t energy-tracker .
-```
-
-### Kör container manuellt
-
-```bash
-docker run --rm -p 8000:8000 energy-tracker
-```
-
-## 5) Körning med Docker Compose
-
-Projektet innehåller en named volume (`energy_data`) för persistent databas i containerläge.
-
-### Starta
-
-```bash
-docker compose up --build
-```
-
-### Kontrollera status (inklusive healthcheck)
-
-```bash
+docker compose up --build -d
 docker compose ps
 ```
 
-När allt fungerar ska `api` visas som `healthy`.
-
-### Stoppa
+Stoppa:
 
 ```bash
 docker compose down
 ```
 
-> Obs: Volymen ligger kvar efter `down`, så data bevaras mellan omstarter.
+## CI/CD och deploy
 
-## 6) Databasinformation
+Vid push till main körs en GitHub Actions-pipeline som:
 
-- Lokalt (utan Docker): `energy.db` i projektroten.
-- Docker Compose: `DB_FILE=/app/data/energy.db`, lagras i named volume `energy_data`.
+1. Ansluter till EC2 via SSH
+2. Hämtar senaste kod från main
+3. Bygger och startar om tjänsten med Docker Compose
 
-Tabellen som skapas automatiskt vid uppstart heter `measurements` och har kolumner:
+Secrets som används:
 
-- `id` (INTEGER, PRIMARY KEY, AUTOINCREMENT)
-- `project_name` (TEXT)
-- `date` (TEXT i ISO-format, t.ex. `2026-03-08`)
-- `kwh_consumed` (REAL)
+- HOST
+- USERNAME
+- KEY
 
-## 7) Vanliga problem och lösningar
+## Säkerhet och hygiene
 
-### Port 8000 är upptagen
-Stoppa processen som använder porten, eller mappa en annan port i Docker/Compose.
+- Känsliga värden ligger i GitHub Secrets
+- .dockerignore exkluderar .venv, energy.db och __pycache__
 
-### `ModuleNotFoundError`
-Kör om:
+## Live
 
-```bash
-pip install -r requirements.txt
-```
+API-dokumentation:
 
-### API startar men sparar ingen data i Docker
-Kontrollera att du startar via `docker compose up` så att volym + `DB_FILE` används.
-
----
-
-## Snabbstart (kort version)
-
-```bash
-pip install -r requirements.txt
-python -m uvicorn main:app --reload
-```
-
-Öppna sedan `http://127.0.0.1:8000/docs`.
+- http://16.170.249.200:8000/docs
