@@ -1,0 +1,3 @@
+.venv/
+energy.db
+__pycache__/
